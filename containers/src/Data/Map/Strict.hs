@@ -131,6 +131,7 @@ module Data.Map.Strict
     , insertWith
     , insertWithKey
     , insertLookupWithKey
+    , upsertM
 
     -- * Deletion\/Update
     , delete

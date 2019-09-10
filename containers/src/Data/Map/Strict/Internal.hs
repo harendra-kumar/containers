@@ -112,6 +112,7 @@ module Data.Map.Strict.Internal
     , insertWith
     , insertWithKey
     , insertLookupWithKey
+    , upsertM
 
     -- ** Delete\/Update
     , delete
@@ -570,6 +571,33 @@ insertWithR = go
 #else
 {-# INLINE insertWithR #-}
 #endif
+
+{-# INLINABLE upsertM #-}
+upsertM :: (Ord k, Monad m)
+    => (a -> m v) -> (v -> a -> m ()) -> k -> a -> Map k v -> m (Map k v)
+upsertM fInsert fUpdate !key !value kvmap  =  do
+    res <- go kvmap
+    return $ case res of
+        Just r -> r
+        Nothing -> kvmap
+  where
+    -- go :: Ord k => Map k a -> m (Maybe (Map k a))
+    go Tip = fInsert value >>= return . Just . singleton key
+    go (Bin _ ky y l r) =
+        case compare key ky of
+            LT -> do
+                res <- go l
+                return $ case res of
+                    Just lmap -> Just $ balanceL ky y lmap r
+                    Nothing -> Nothing
+            GT -> do
+                res <- go r
+                return $ case res of
+                    Just rmap -> Just $ balanceR ky y l rmap
+                    Nothing -> Nothing
+            EQ -> do
+                fUpdate y value
+                return Nothing
 
 -- | /O(log n)/. Insert with a function, combining key, new value and old value.
 -- @'insertWithKey' f key value mp@
